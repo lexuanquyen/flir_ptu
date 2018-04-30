@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(flir_ptu_driver)
 
+set( CMAKE_BUILD_TYPE Debug )
+
 find_package(catkin REQUIRED COMPONENTS actionlib diagnostic_updater roscpp roslaunch roslint rospy serial sensor_msgs tf)
 find_package(Boost REQUIRED)
 
