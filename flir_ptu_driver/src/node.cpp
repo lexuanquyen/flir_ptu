@@ -35,6 +35,7 @@
 #include <sensor_msgs/JointState.h>
 #include <serial/serial.h>
 #include <std_msgs/Bool.h>
+#include <flir_ptu_driver/PtuDirectControl.h>
 
 #include <string>
 
@@ -60,6 +61,7 @@ public:
 
   // Callback Methods
   void cmdCallback(const sensor_msgs::JointState::ConstPtr& msg);
+  void ptuDirectControlCallback(const flir_ptu_driver::PtuDirectControl::ConstPtr& msg);
   void resetCallback(const std_msgs::Bool::ConstPtr& msg);
 
   void produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat);
@@ -70,6 +72,7 @@ protected:
   ros::NodeHandle m_node;
   ros::Publisher  m_joint_pub;
   ros::Subscriber m_joint_sub;
+  ros::Subscriber m_direct_sub;
   ros::Subscriber m_reset_sub;
 
   serial::Serial m_ser;
@@ -107,10 +110,13 @@ void Node::connect()
   std::string port;
   int32_t baud;
   bool limit;
+  bool foo;
+
   ros::param::param<std::string>("~port", port, PTU_DEFAULT_PORT);
   ros::param::param<bool>("~limits_enabled", limit, true);
   ros::param::param<int32_t>("~baud", baud, PTU_DEFAULT_BAUD);
   ros::param::param<double>("~default_velocity", default_velocity_, PTU_DEFAULT_VEL);
+  ros::param::param<bool>("~foobarbaz", foo, true); // FIXME: if necessary, fix this to permit mocked operations
 
   // Connect to the PTU
   ROS_INFO_STREAM("Attempting to connect to FLIR PTU on " << port);
@@ -136,8 +142,11 @@ void Node::connect()
   if (!m_pantilt->initialize())
   {
     ROS_ERROR_STREAM("Could not initialize FLIR PTU on " << port);
-    disconnect();
-    return;
+    if (!foo)
+    {
+      disconnect();
+      return;
+    }
   }
 
   if (!limit)
@@ -167,6 +176,10 @@ void Node::connect()
   // Subscribers : Only subscribe to the most recent instructions
   m_joint_sub = m_node.subscribe
                 <sensor_msgs::JointState>("cmd", 1, &Node::cmdCallback, this);
+  
+  // Subscribers : Only subscribe to the most recent instructions
+  m_direct_sub = m_node.subscribe
+    <flir_ptu_driver::PtuDirectControl>("/ptu_direct_control", 1, &Node::ptuDirectControlCallback, this);
 
   m_reset_sub = m_node.subscribe
                 <std_msgs::Bool>("reset",1, &Node::resetCallback, this);
@@ -187,6 +200,16 @@ void Node::resetCallback(const std_msgs::Bool::ConstPtr& msg)
 {
   ROS_INFO("Resetting the PTU");
   m_pantilt->home();
+}
+
+/** Callback for applying direct control messages for the api **/
+void Node::ptuDirectControlCallback(const flir_ptu_driver::PtuDirectControl::ConstPtr& msg)
+{
+  ROS_DEBUG_STREAM_NAMED("flir_node", "PTU Direct Message Callback msg of length "<<msg->length);
+  const uint8_t * command = &*(msg->command.begin());
+  uint32_t length = msg->length;
+
+  m_pantilt->sendCommand(command, length);
 }
 
 /** Callback for getting new Goal JointState */

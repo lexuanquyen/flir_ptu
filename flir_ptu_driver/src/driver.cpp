@@ -117,6 +117,13 @@ std::string PTU::sendCommand(std::string command)
   return buffer;
 }
 
+void PTU::sendCommand(const unsigned char * data, unsigned int length)
+{
+  ser_->write(data, length);
+  ROS_DEBUG_STREAM("TX: " << length << " bytes");
+  return;
+}
+
 bool PTU::home()
 {
   ROS_INFO("Sending command to reset PTU.");

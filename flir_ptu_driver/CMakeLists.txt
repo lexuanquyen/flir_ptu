@@ -2,13 +2,32 @@ cmake_minimum_required(VERSION 2.8.3)
 project(flir_ptu_driver)
 
 set( CMAKE_BUILD_TYPE Debug )
+set( CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(catkin REQUIRED COMPONENTS actionlib diagnostic_updater roscpp roslaunch roslint rospy serial sensor_msgs tf)
+find_package(catkin REQUIRED COMPONENTS actionlib diagnostic_updater roscpp roslaunch roslint rospy serial sensor_msgs geometry_msgs tf message_generation)
 find_package(Boost REQUIRED)
+###################################
+## message generation ##
+###################################
+add_message_files(
+  FILES
+  PtuDirectControl.msg
+)
 
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+####################################
+## catkin configuration
+####################################
 catkin_package(
    LIBRARIES flir_ptu_driver
-   CATKIN_DEPENDS sensor_msgs serial
+   CATKIN_DEPENDS 
+        sensor_msgs 
+        serial
+        message_runtime
 )
 
 ## Specify additional locations of header files
@@ -18,6 +37,7 @@ include_directories(include
   ${Boost_INCLUDE_DIRS}
 )
 
+
 ## Declare a cpp library
 add_library(flir_ptu_driver src/driver.cpp)
 target_link_libraries(flir_ptu_driver ${catkin_LIBRARIES})
@@ -25,7 +45,7 @@ target_link_libraries(flir_ptu_driver ${catkin_LIBRARIES})
 ## Declare a cpp executable
 add_executable(flir_ptu_node src/node.cpp)
 target_link_libraries(flir_ptu_node ${catkin_LIBRARIES} flir_ptu_driver)
-add_dependencies(flir_ptu_node flir_ptu_msgs_generate_messages_cpp)
+add_dependencies(flir_ptu_node flir_ptu_msgs_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 set_target_properties(flir_ptu_node
                       PROPERTIES OUTPUT_NAME ptu_node PREFIX "")
 

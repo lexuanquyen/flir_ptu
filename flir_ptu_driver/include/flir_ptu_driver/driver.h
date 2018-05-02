@@ -166,6 +166,7 @@ public:
 
   bool home();
 
+  void  sendCommand(const unsigned char *data, unsigned int length);
 private:
   /** get radian/count resolution
    * \param type 'p' or 't'
