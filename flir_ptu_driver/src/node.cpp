@@ -36,7 +36,7 @@
 #include <serial/serial.h>
 #include <std_msgs/Bool.h>
 #include <flir_ptu_driver/PtuDirectControl.h>
-
+#include <geometry_msgs/Twist.h>
 #include <string>
 
 namespace flir_ptu_driver
@@ -63,9 +63,9 @@ public:
   void cmdCallback(const sensor_msgs::JointState::ConstPtr& msg);
   void ptuDirectControlCallback(const flir_ptu_driver::PtuDirectControl::ConstPtr& msg);
   void resetCallback(const std_msgs::Bool::ConstPtr& msg);
-
+  void rotateRelativeCallback(const geometry_msgs::Twist::ConstPtr& msg);  
   void produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat);
-
+  
 protected:
   diagnostic_updater::Updater* m_updater;
   PTU* m_pantilt;
@@ -74,6 +74,7 @@ protected:
   ros::Subscriber m_joint_sub;
   ros::Subscriber m_direct_sub;
   ros::Subscriber m_reset_sub;
+  ros::Subscriber m_rotate_rel_sub;
 
   serial::Serial m_ser;
   std::string m_joint_name_prefix;
@@ -181,6 +182,9 @@ void Node::connect()
   m_direct_sub = m_node.subscribe
     <flir_ptu_driver::PtuDirectControl>("direct_control", 1, &Node::ptuDirectControlCallback, this);
 
+  m_rotate_rel_sub = m_node.subscribe
+    <geometry_msgs::Twist>("rotate_relative", 1, &Node::rotateRelativeCallback, this);
+
   m_reset_sub = m_node.subscribe
                 <std_msgs::Bool>("reset",1, &Node::resetCallback, this);
 }
@@ -246,6 +250,11 @@ void Node::cmdCallback(const sensor_msgs::JointState::ConstPtr& msg)
   m_pantilt->setSpeed(PTU_TILT, tiltspeed);
 }
 
+void Node::rotateRelativeCallback(const geometry_msgs::Twist::ConstPtr& msg)
+{
+  ROS_DEBUG_STREAM_NAMED("flir_node", "PTU rotate relative callback with rotation request pan "
+    << msg->angular.x << "rad. and tilt " << msg->angular.y << "rad.");
+}
 void Node::produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat)
 {
   stat.summary(diagnostic_msgs::DiagnosticStatus::OK, "All normal.");
