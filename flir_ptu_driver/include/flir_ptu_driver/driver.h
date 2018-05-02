@@ -65,7 +65,7 @@ public:
    * \param ser serial::Serial instance ready to communciate with device.
    */
   explicit PTU(serial::Serial* ser) :
-    ser_(ser), initialized_(false)
+    ser_(ser), initialized_(false), is_dry_run_(false)
   {
   }
 
@@ -133,6 +133,14 @@ public:
     return getResolution(type) * (type == PTU_TILT ? TSMax : PSMax);
   }
 
+  /** Setter for the dry run private member
+    * If this is set to true, then the constraints around initilaization
+    * state are loosened, permitting the use of the PTU driver, even
+    * when it is not properly initialized and/or connected.  Useful for
+    * development and debugging
+    */
+  void setDryRun(bool is_dry_run);
+
   /**
    * Moves the PTU to the desired position. If Block is true,
    * the call blocks until the desired position is reached
@@ -142,6 +150,28 @@ public:
    * \return True if successfully sent command
   */
   bool setPosition(char type, float pos, bool Block = false);
+
+  /**
+   * Moves the PTU to the desired offset. If Block is true,
+   * the call blocks until the desired position is reached
+   * \param type 'p' or 't'
+   * \param pos desired offset in radians
+   * \param Block block until ready
+   * \return True if successfully sent command
+  */
+  bool offsetPosition(char type, float pos, bool Block = false);
+
+
+  /**
+   * Moves the PTU to the desired position. If Block is true,
+   * the call blocks until the desired position is reached
+   * \param x desired pan offset in radians
+   * \param y desired tilt offset in radians
+   * \param Block block until ready
+   * \return True if successfully sent command
+  */
+  bool offsetPosition(float x, float y, bool Block = false);
+
 
   /**
    * sets the desired speed in radians/second
@@ -167,6 +197,9 @@ public:
   bool home();
 
   void  sendCommand(const unsigned char *data, unsigned int length);
+
+  std::string sendSlavedCommands (std::string commands, bool do_wait=false);
+
 private:
   /** get radian/count resolution
    * \param type 'p' or 't'
@@ -205,6 +238,7 @@ protected:
 
   serial::Serial* ser_;
   bool initialized_;
+  bool is_dry_run_;
 
   float tr;  ///< tilt resolution (rads/count)
   float pr;  ///< pan resolution (rads/count)
