@@ -111,13 +111,13 @@ void Node::connect()
   std::string port;
   int32_t baud;
   bool limit;
-  bool foo;
+  bool is_dry_run;
 
   ros::param::param<std::string>("~port", port, PTU_DEFAULT_PORT);
   ros::param::param<bool>("~limits_enabled", limit, true);
   ros::param::param<int32_t>("~baud", baud, PTU_DEFAULT_BAUD);
   ros::param::param<double>("~default_velocity", default_velocity_, PTU_DEFAULT_VEL);
-  ros::param::param<bool>("~foobarbaz", foo, true); // FIXME: if necessary, fix this to permit mocked operations
+  ros::param::param<bool>("~dry_run", is_dry_run, false);
 
   // Connect to the PTU
   ROS_INFO_STREAM("Attempting to connect to FLIR PTU on " << port);
@@ -143,11 +143,16 @@ void Node::connect()
   if (!m_pantilt->initialize())
   {
     ROS_ERROR_STREAM("Could not initialize FLIR PTU on " << port);
-    if (!foo)
+    if (!is_dry_run)
     {
       disconnect();
       return;
     }
+    else
+    {
+      m_pantilt->setDryRun(is_dry_run);
+    }
+    ROS_DEBUG_STREAM("Continuing dry run in spite of failure to initialize");
   }
 
   if (!limit)
@@ -254,6 +259,14 @@ void Node::rotateRelativeCallback(const geometry_msgs::Twist::ConstPtr& msg)
 {
   ROS_DEBUG_STREAM_NAMED("flir_node", "PTU rotate relative callback with rotation request pan "
     << msg->angular.x << "rad. and tilt " << msg->angular.y << "rad.");
+  if(!ok()) return;
+  
+  float pan = msg->angular.x;
+  float tilt = msg->angular.y;
+  if (m_pantilt->offsetPosition(pan, tilt))
+  {
+    ROS_DEBUG_STREAM_NAMED("flir_node", "PTU offset successfully");
+  }
 }
 void Node::produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat)
 {
