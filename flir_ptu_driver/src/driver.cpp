@@ -36,9 +36,11 @@
 
 #include <math.h>
 #include <string>
+#include <sstream>
+#include <iostream>
+#include <vector>
 
 using boost::lexical_cast;
-
 
 namespace flir_ptu_driver
 {
@@ -62,9 +64,14 @@ T parseResponse(std::string responseBuffer)
   return parsed;
 }
 
+void PTU::setDryRun(bool is_dry_run)
+{
+  is_dry_run_ = is_dry_run;
+}
+
 bool PTU::initialized()
 {
-  return !!ser_ && ser_->isOpen() && initialized_;
+  return (is_dry_run_) || (!!ser_ && ser_->isOpen() && initialized_);
 }
 
 bool PTU::disableLimits()
@@ -117,12 +124,40 @@ std::string PTU::sendCommand(std::string command)
   return buffer;
 }
 
+
 void PTU::sendCommand(const unsigned char * data, unsigned int length)
 {
   ser_->write(data, length);
   ROS_DEBUG_STREAM("TX: " << length << " bytes");
   return;
 }
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  PTU::sendSlavedCommand
+ *  Description:  send multiple commands slaved together. Stop if the return result is
+ *   a NAK "!"
+ *        Param:  string commands
+ *        Param:  bool do_wait wait for completion, or enter "instantaneous"
+ *       return:  std::string indicating the final result
+ * =====================================================================================
+ */
+std::string PTU::sendSlavedCommands (std::string commands, bool do_wait )
+{
+  // build the appropriate string stream for the problem
+  std::string s, result = "*", buffer="s,";
+  buffer.append(commands);
+  if (do_wait) buffer.append(",a");
+  else buffer.append(",I");
+  std::istringstream f(buffer);
+  
+  // iterate the list and fail gracefull where necessary
+  while (std::getline(f, s, ',') && result[0] =='*') {
+    result = sendCommand(s+" ");
+  }
+  
+  return result;
+}		/* -----  end of function PTU::sendSlavedCommands ----- */
 
 bool PTU::home()
 {
@@ -237,6 +272,60 @@ bool PTU::setPosition(char type, float pos, bool block)
     {
       usleep(1000);
     }
+  }
+
+  return true;
+}
+
+// send a pan or tilt offset
+bool PTU::offsetPosition(char type, float pos, bool block)
+{
+  if (!initialized()) return false;
+  
+  // get raw encoder count to move
+  int count = static_cast<int>(pos / getResolution(type));
+
+  std::string buffer = sendCommand(std::string() + type +"o" 
+    + lexical_cast<std::string>(count));
+
+  if (buffer.empty() || buffer[0] != '*')
+  {
+    ROS_ERROR_STREAM("Error offsetting pan-tilt position "<<type<<pos);
+    return false;
+  }
+
+  if (block)
+  {
+    buffer = sendCommand(std::string() + "a");
+    if (buffer.empty() || buffer[0] != '*') 
+    {
+      ROS_ERROR_STREAM("Error offsetting pan-tilt position "<<type<<pos);
+      return false;
+    }
+  }
+  return true;
+}
+
+// send a pan and tilt offset through the slaved command interface in order
+// to permit the movement in both x and y
+bool PTU::offsetPosition(float x, float y, bool block)
+{
+  if (!initialized()) return false;
+  
+  // get raw encoder count to move
+  int pancount = static_cast<int>(x / getResolution('p'));
+  int tiltcount = static_cast<int>(y / getResolution('t'));
+
+  std::string buffer = std::string();
+  buffer += "po" + lexical_cast<std::string>(pancount) + ",";
+  buffer += "to" + lexical_cast<std::string>(tiltcount);
+  
+  std::string result = sendSlavedCommands(buffer, block);
+
+  if (result.empty() || result[0] != '*')
+  {
+    ROS_ERROR_STREAM("Error offsetting pan:tilt "<<x << ":" << y);
+    return false;
   }
 
   return true;
