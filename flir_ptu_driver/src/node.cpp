@@ -179,7 +179,7 @@ void Node::connect()
   
   // Subscribers : Only subscribe to the most recent instructions
   m_direct_sub = m_node.subscribe
-    <flir_ptu_driver::PtuDirectControl>("/ptu_direct_control", 1, &Node::ptuDirectControlCallback, this);
+    <flir_ptu_driver::PtuDirectControl>("direct_control", 1, &Node::ptuDirectControlCallback, this);
 
   m_reset_sub = m_node.subscribe
                 <std_msgs::Bool>("reset",1, &Node::resetCallback, this);
