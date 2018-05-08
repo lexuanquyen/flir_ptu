@@ -62,6 +62,7 @@ public:
   // Callback Methods
   void cmdCallback(const sensor_msgs::JointState::ConstPtr& msg);
   void ptuDirectControlCallback(const flir_ptu_driver::PtuDirectControl::ConstPtr& msg);
+  void ptuJogCallback(const geometry_msgs::Twist::ConstPtr& msg);
   void resetCallback(const std_msgs::Bool::ConstPtr& msg);
   void rotateRelativeCallback(const geometry_msgs::Twist::ConstPtr& msg);  
   void produce_diagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat);
@@ -73,12 +74,14 @@ protected:
   ros::Publisher  m_joint_pub;
   ros::Subscriber m_joint_sub;
   ros::Subscriber m_direct_sub;
+  ros::Subscriber m_jog_sub;
   ros::Subscriber m_reset_sub;
   ros::Subscriber m_rotate_rel_sub;
 
   serial::Serial m_ser;
   std::string m_joint_name_prefix;
   double default_velocity_;
+  double m_jog_step_rads_;
 };
 
 Node::Node(ros::NodeHandle& node_handle)
@@ -89,6 +92,7 @@ Node::Node(ros::NodeHandle& node_handle)
   m_updater->add("PTU Status", this, &Node::produce_diagnostics);
 
   ros::param::param<std::string>("~joint_name_prefix", m_joint_name_prefix, "ptu_");
+  ros::param::param<double>("~jog_step_rads", m_jog_step_rads_, 0.01);
 }
 
 Node::~Node()
@@ -187,6 +191,9 @@ void Node::connect()
   m_direct_sub = m_node.subscribe
     <flir_ptu_driver::PtuDirectControl>("direct_control", 1, &Node::ptuDirectControlCallback, this);
 
+  m_jog_sub = m_node.subscribe
+    <geometry_msgs::Twist>("jogging", 1, &Node::ptuJogCallback, this);
+
   m_rotate_rel_sub = m_node.subscribe
     <geometry_msgs::Twist>("rotate_relative", 1, &Node::rotateRelativeCallback, this);
 
@@ -215,10 +222,33 @@ void Node::resetCallback(const std_msgs::Bool::ConstPtr& msg)
 void Node::ptuDirectControlCallback(const flir_ptu_driver::PtuDirectControl::ConstPtr& msg)
 {
   ROS_DEBUG_STREAM_NAMED("flir_node", "PTU Direct Message Callback msg of length "<<msg->length);
+  if (!ok()) return;
+
   const uint8_t * command = &*(msg->command.begin());
   uint32_t length = msg->length;
 
   m_pantilt->sendCommand(command, length);
+}
+
+/** Callback for jogging the PTU via API calls **/
+void Node::ptuJogCallback(const geometry_msgs::Twist::ConstPtr& msg)
+{
+  ROS_DEBUG_STREAM_NAMED("flir_node", "PTU Jogging Callback");
+  
+  if (!ok()) return;
+  
+  if (abs(msg->angular.x) != 1 && abs(msg->angular.y) != 1)
+  {
+      ROS_ERROR("Jog Command to PTU has been called with out of range value.");
+      return;
+  }
+  
+  float pan = msg->angular.x * m_jog_step_rads_;
+  float tilt = msg->angular.y * m_jog_step_rads_;
+  if (m_pantilt->offsetPosition(pan, tilt))
+  {
+    ROS_DEBUG_STREAM_NAMED("flir_node", "PTU offset successfully");
+  }
 }
 
 /** Callback for getting new Goal JointState */
