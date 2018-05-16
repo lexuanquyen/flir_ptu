@@ -5,7 +5,8 @@
     <arg name="debug" default="false"/>
     <arg name="dry_run" default="false"/>
     <arg name="output" default="screen"/>
-    <param name="jog_step_rads" value="0.02"/>
+    <arg name="jog_step_rads" default="0.005"/>
+    <arg name="jog_period_min_millis" default="150"/>
 
     <!-- When you integrate into your platform, use the provided xacro macro to include
        the D46 URDF with your larger platform description, and have your platform's
@@ -20,6 +21,8 @@
           <param name="limits_enabled" value="$(arg limits_enabled)" />
           <remap from="state" to="/joint_states" />
           <param name="dry_run" value="$(arg dry_run)"/>
+          <param name="jog_step_rads" value="$(arg jog_step_rads)"/>
+          <param name="jog_period_min_millis" value="$(arg jog_period_min_millis)"/>
       </node>
   </group>
 
@@ -30,6 +33,8 @@
           <param name="limits_enabled" value="$(arg limits_enabled)" />
           <remap from="state" to="/joint_states" />
           <param name="dry_run" value="$(arg dry_run)"/>
+          <param name="jog_step_rads" value="$(arg jog_step_rads)"/>
+          <param name="jog_period_min_millis" value="$(arg jog_period_min_millis)"/>
       </node>
   </group>
 

@@ -3,6 +3,7 @@ project(flir_ptu_driver)
 
 set( CMAKE_BUILD_TYPE Debug )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 find_package(catkin REQUIRED COMPONENTS actionlib diagnostic_updater roscpp roslaunch roslint rospy serial sensor_msgs geometry_msgs tf message_generation)
 find_package(Boost REQUIRED)
