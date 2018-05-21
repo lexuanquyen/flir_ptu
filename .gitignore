@@ -33,10 +33,13 @@ docs/
 *.pyc
 *.pkl
 
-
 # Temporary files
 *.swp
 *~
+*.swo
+
+# Ycm Consideration
+compile_commands.json
 
 # Mac os
 .DS_Store
